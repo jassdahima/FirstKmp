@@ -1,5 +1,9 @@
 package com.example.firstkmp
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,11 +18,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DonutLarge
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -74,17 +80,17 @@ fun App() {
     val state = rememberPullToRefreshState()
 
 
-    LaunchedEffect(Unit){
-        try {
-            val response = client.getLayer()
-            countryLayer = response
-            println(countryLayer)
-
-
-        } catch (e: Exception) {
-            println("Error: ${e.message}")
-        }
-    }
+//    LaunchedEffect(Unit){
+//        try {
+//            val response = client.getLayer()
+//            countryLayer = response
+//            println(countryLayer)
+//
+//
+//        } catch (e: Exception) {
+//            println("Error: ${e.message}")
+//        }
+//    }
 
     LaunchedEffect(searchText){
         if (searchText.length > 4){
@@ -153,62 +159,100 @@ fun App() {
                     }
                 }
             }
-        ) { paddingValues ->
+        ) {
 
             NavHost(
                 navController = navController,
                 startDestination = Screen.Home.route,
-                modifier = Modifier.padding(paddingValues)
+               // modifier = Modifier.padding(paddingValues),
+                enterTransition = { fadeIn(animationSpec = tween(300)) + slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start) },
+                exitTransition = { fadeOut(animationSpec = tween(300)) + slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End) }
             ) {
                 composable(Screen.Home.route) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        //Text("${Screen.Home.title}")
-                        if (countryLayer.isEmpty()) {
-                            // Creative Loading State
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    CircularProgressIndicator(strokeWidth = 3.dp)
-                                    Spacer(Modifier.height(16.dp))
-                                    Text("Searching for flights...", style = MaterialTheme.typography.bodyMedium)
+                    Scaffold( topBar = {
+                        Column(modifier = Modifier
+                            .fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally) {
+                            TopAppBar(
+                                title = {
+                                    Text("Flights", fontSize = 32.sp)
                                 }
-                            }
-                        } else {
-                            PullToRefreshBox(
-                                isRefreshing = isRefreshing,
-                                onRefresh = {
-                                    scope.launch {
-                                        isRefreshing = true
-                                        countryLayer = client.getLayer()
-                                        isRefreshing = false
-                                    }
-                                },
-                                state = state
-                            ) {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    item {
-                                        Text(
-                                            text = "Featured Destinations",
-                                            style = MaterialTheme.typography.headlineSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.padding(bottom = 8.dp)
-                                        )
-                                    }
 
-                                    items(countryLayer) { item ->
-                                        CountryCard(item, onClick = {navController.navigate(Detail(item.name))})
+                            )
+                            OutlinedTextField(value = searchText, onValueChange = {searchText = it}, label = {Text("Search")},
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(32.dp),
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        scope.launch {
+                                            try {
+                                                val searchResponse = client.getLayerBySearch(searchText)
+                                                countryLayer = searchResponse
+                                            }
+                                            catch (e: Exception){
+                                                println("Error: ${e.message}")
+                                            }
+                                        }
+                                    }){Icon(
+                                        Icons.Default.DonutLarge,contentDescription = null)
+                                    }
+                                }
+                            )
+                        }
+                    }) {paddingValues ->
+                        Column(
+                            modifier = Modifier
+                                .padding(paddingValues),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            //Text("${Screen.Home.title}")
+                            if (countryLayer.isEmpty()) {
+                                // Creative Loading State
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        CircularProgressIndicator(strokeWidth = 3.dp)
+                                        Spacer(Modifier.height(16.dp))
+                                        Text("Searching for flights...", style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
+                            } else {
+                                PullToRefreshBox(
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = {
+                                        scope.launch {
+                                            isRefreshing = true
+                                            countryLayer = client.getLayer()
+                                            isRefreshing = false
+                                        }
+                                    },
+                                    state = state
+                                ) {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        item {
+                                            Text(
+                                                text = "Featured Destinations",
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(bottom = 8.dp)
+                                            )
+                                        }
+
+                                        items(countryLayer) { item ->
+                                            CountryCard(item, onClick = {navController.navigate(Detail(item.name))})
+                                        }
                                     }
                                 }
                             }
                         }
-                        }
+                    }
+
+
 
                     }
                     composable(Screen.Apps.route) {
@@ -244,7 +288,9 @@ fun App() {
                 composable<Detail> {
                     backStackEntry ->
                     val details = backStackEntry.toRoute<Detail>()
-                    DetailScreen(details.name, onPress = {navController.popBackStack()})
+
+                    val selectedCountry = countryLayer.find { it.name == details.name }
+                    DetailScreen(item = selectedCountry, onPress = {navController.popBackStack()})
 
 
 
@@ -316,7 +362,89 @@ fun CountryCard(item: LayerItem,onClick : () -> Unit) {
 
 
 @Composable
-fun DetailScreen(name : String,onPress : () -> Unit){
-        Text("Detail Screen: $name")
+fun DetailScreen(onPress : () -> Unit,item : LayerItem?) {
+
+
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text(item?.name?: "Not Found") },
+            navigationIcon = {
+                IconButton(onClick = onPress) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                }
+            }
+        )
+    }) { innerPadding ->
+
+        if (item == null){
+            Box(Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center){
+                Text("Country Not Found")
+            }
+        }
+        else
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            DetailsCard(item)
+        }
+
     }
+}
+
+@Composable
+fun DetailsCard(item: LayerItem) {
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = item.name,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            DetailRow(label = "Capital", value = item.capital)
+            DetailRow(label = "Region", value = item.region)
+            DetailRow(label = "Codes", value = "${item.alpha2Code} / ${item.alpha3Code}")
+            DetailRow(label = "Calling Codes", value = item.callingCodes.joinToString(", "))
+
+            if (item.altSpellings.isNotEmpty()) {
+                DetailRow(label = "Alt Spellings", value = item.altSpellings.joinToString(", "))
+            }
+        }
+    }
+}
+@Composable
+fun DetailRow(label: String, value: String) {
+    Column {
+        Text(
+            text = label.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+
+
+
 
