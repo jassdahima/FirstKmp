@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -52,8 +53,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.example.firstkmp.presentation.LayerViewModel
 
 
 @Composable
@@ -67,17 +67,24 @@ fun App() {
 
     val items = listOf(Screen.Home, Screen.Apps, Screen.Events, Screen.Tab)
 
-    val client = remember { KtorClient() }
+   // val client = remember { KtorClient() }
 
-    var countryLayer by remember { mutableStateOf<List<LayerItem>>(emptyList()) }
+   // var countryLayer by remember { mutableStateOf<List<LayerItem>>(emptyList()) }
 
-    var searchText by remember { mutableStateOf("") }
+   // var searchText by remember { mutableStateOf("") }
 
-    val scope = rememberCoroutineScope()
+   // val scope = rememberCoroutineScope()
 
-    var isRefreshing by remember { mutableStateOf(false) }
+   // var isRefreshing by remember { mutableStateOf(false) }
 
     val state = rememberPullToRefreshState()
+
+    val viewModel : LayerViewModel = viewModel {
+        LayerViewModel(client = KtorClient())
+    }
+
+    val uiState by viewModel.state.collectAsState()
+
 
 
 //    LaunchedEffect(Unit){
@@ -92,14 +99,16 @@ fun App() {
 //        }
 //    }
 
-    LaunchedEffect(searchText){
-        if (searchText.length > 4){
-            delay(500)
-            countryLayer = client.getLayerBySearch(searchText)
-        }
-    }
+//    LaunchedEffect(searchText){
+//        if (searchText.length > 4){
+//            delay(500)
+//            countryLayer = client.getLayerBySearch(searchText)
+//        }
+//    }
 
-
+//LaunchedEffect(Unit){
+//    viewModel.getAllLayers()
+//}
 
 
 
@@ -108,36 +117,6 @@ fun App() {
     MaterialTheme {
 
         Scaffold(
-            topBar = {
-                Column(modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                TopAppBar(
-                    title = {
-                        Text("Flights", fontSize = 32.sp)
-                    }
-
-                )
-                OutlinedTextField(value = searchText, onValueChange = {searchText = it}, label = {Text("Search")},
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(32.dp),
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            scope.launch {
-                            try {
-                                val searchResponse = client.getLayerBySearch(searchText)
-                                countryLayer = searchResponse
-                            }
-                            catch (e: Exception){
-                                println("Error: ${e.message}")
-                            }
-                                }
-                        }){Icon(
-                            Icons.Default.DonutLarge,contentDescription = null)
-                        }
-                    }
-                )
-            }
-                     },
             bottomBar = {
                 NavigationBar {
                     items.forEach { screen ->
@@ -181,20 +160,22 @@ fun App() {
                                 }
 
                             )
-                            OutlinedTextField(value = searchText, onValueChange = {searchText = it}, label = {Text("Search")},
+                            OutlinedTextField(value = uiState.searchText, onValueChange = {viewModel.onSearchTextChange(it)}, label = {Text("Search")},
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(32.dp),
                                 trailingIcon = {
                                     IconButton(onClick = {
-                                        scope.launch {
-                                            try {
-                                                val searchResponse = client.getLayerBySearch(searchText)
-                                                countryLayer = searchResponse
-                                            }
-                                            catch (e: Exception){
-                                                println("Error: ${e.message}")
-                                            }
-                                        }
+//                                        scope.launch {
+//                                            try {
+//                                                val searchResponse = client.getLayerBySearch(searchText)
+//                                                countryLayer = searchResponse
+//                                            }
+//                                            catch (e: Exception){
+//                                                println("Error: ${e.message}")
+//                                            }
+//                                        }
+
+                                        viewModel.getLayerBySearch(uiState.searchText)
                                     }){Icon(
                                         Icons.Default.DonutLarge,contentDescription = null)
                                     }
@@ -208,7 +189,7 @@ fun App() {
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             //Text("${Screen.Home.title}")
-                            if (countryLayer.isEmpty()) {
+                            if (uiState.isLoading) {
                                 // Creative Loading State
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -219,13 +200,9 @@ fun App() {
                                 }
                             } else {
                                 PullToRefreshBox(
-                                    isRefreshing = isRefreshing,
+                                    isRefreshing = uiState.isRefreshing,
                                     onRefresh = {
-                                        scope.launch {
-                                            isRefreshing = true
-                                            countryLayer = client.getLayer()
-                                            isRefreshing = false
-                                        }
+                                       viewModel.refreshBox()
                                     },
                                     state = state
                                 ) {
@@ -243,7 +220,7 @@ fun App() {
                                             )
                                         }
 
-                                        items(countryLayer) { item ->
+                                        items(uiState.countryLayer) { item ->
                                             CountryCard(item, onClick = {navController.navigate(Detail(item.name))})
                                         }
                                     }
@@ -289,7 +266,7 @@ fun App() {
                     backStackEntry ->
                     val details = backStackEntry.toRoute<Detail>()
 
-                    val selectedCountry = countryLayer.find { it.name == details.name }
+                    val selectedCountry = uiState.countryLayer.find { it.name == details.name }
                     DetailScreen(item = selectedCountry, onPress = {navController.popBackStack()})
 
 
