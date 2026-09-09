@@ -5,8 +5,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -15,6 +20,9 @@ class LayerViewModel(val client : KtorClient) : ViewModel(){
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
 
+    init {
+        searchDebounce()
+    }
 
 
     fun getAllLayers() {
@@ -60,6 +68,22 @@ class LayerViewModel(val client : KtorClient) : ViewModel(){
         }
     }
 
+    @OptIn(FlowPreview::class)
+    fun searchDebounce(){
+        viewModelScope.launch {
+            _state.map {
+                it.searchText
+            }
+                .debounce(500)
+                .distinctUntilChanged()
+                .filter { it.length > 4 }
+                .collect {
+                    query ->
+                    getLayerBySearch(query)
+                }
+        }
+    }
+
 
 
 }
@@ -69,6 +93,6 @@ data class UiState(
     var countryLayer : List<LayerItem> = emptyList(),
     val isLoading : Boolean = false,
     val error : String? = null,
-    var isRefreshing : Boolean = false,
+    val isRefreshing : Boolean = false,
     val searchText : String = ""
     )

@@ -176,6 +176,7 @@ fun App() {
 //                                        }
 
                                         viewModel.getLayerBySearch(uiState.searchText)
+
                                     }){Icon(
                                         Icons.Default.DonutLarge,contentDescription = null)
                                     }
