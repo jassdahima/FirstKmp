@@ -156,12 +156,13 @@ fun App() {
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             TopAppBar(
                                 title = {
-                                    Text("Flights", fontSize = 32.sp)
+                                    Text("Flights", style = MaterialTheme.typography.titleLarge, fontSize = 32.sp)
                                 }
 
                             )
                             OutlinedTextField(value = uiState.searchText, onValueChange = {viewModel.onSearchTextChange(it)}, label = {Text("Search")},
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
                                 shape = RoundedCornerShape(32.dp),
                                 trailingIcon = {
                                     IconButton(onClick = {
