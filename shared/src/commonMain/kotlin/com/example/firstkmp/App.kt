@@ -53,6 +53,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
+import com.example.firstkmp.domain.LayerRepositoryImpl
 import com.example.firstkmp.presentation.LayerViewModel
 
 
@@ -67,7 +68,7 @@ fun App() {
 
     val items = listOf(Screen.Home, Screen.Apps, Screen.Events, Screen.Tab)
 
-   // val client = remember { KtorClient() }
+    val client = remember { KtorClient() }
 
    // var countryLayer by remember { mutableStateOf<List<LayerItem>>(emptyList()) }
 
@@ -79,8 +80,10 @@ fun App() {
 
     val state = rememberPullToRefreshState()
 
+    val repository = remember { LayerRepositoryImpl(client) }
+
     val viewModel : LayerViewModel = viewModel {
-        LayerViewModel(client = KtorClient())
+        LayerViewModel(repository)
     }
 
     val uiState by viewModel.state.collectAsState()
@@ -156,12 +159,13 @@ fun App() {
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             TopAppBar(
                                 title = {
-                                    Text("Flights", fontSize = 32.sp)
+                                    Text("Flights", style = MaterialTheme.typography.titleLarge, fontSize = 32.sp)
                                 }
 
                             )
                             OutlinedTextField(value = uiState.searchText, onValueChange = {viewModel.onSearchTextChange(it)}, label = {Text("Search")},
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
                                 shape = RoundedCornerShape(32.dp),
                                 trailingIcon = {
                                     IconButton(onClick = {
