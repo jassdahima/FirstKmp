@@ -132,7 +132,7 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
 
 
 data class UiState(
-    var countryLayer : List<LayerItem> = emptyList(),
+    val countryLayer : List<LayerItem> = emptyList(),
     val isLoading : Boolean = false,
     val error : String? = null,
     val isRefreshing : Boolean = false,
