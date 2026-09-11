@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.firstkmp.data.LayerItem
 import com.example.firstkmp.domain.LayerRepository
+import com.example.firstkmp.domain.NetworkResult
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,13 +30,26 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, error = null)}
 
-            try {
-                val response = repository.getLayers()
-                _state.update { it.copy(isLoading = false, countryLayer = response)}
-                _state.value = _state.value.copy(isLoading = false, countryLayer = response)
-            } catch (e: Exception) {
-                _state.update { it.copy(isLoading = false, error = e.message)}
+//            try {
+//                val response = repository.getLayers()
+//                _state.update { it.copy(isLoading = false, countryLayer = response)}
+//                _state.value = _state.value.copy(isLoading = false, countryLayer = response)
+//            } catch (e: Exception) {
+//                _state.update { it.copy(isLoading = false, error = e.message)}
+//            }
+
+            when(val result = repository.getLayers()){
+                is NetworkResult.Success -> {
+                    _state.update { it.copy(isLoading = false, countryLayer = result.data) }
             }
+                is NetworkResult.Error -> {
+                    _state.update { it.copy(isLoading = false, error = result.message) }}
+
+                else -> {}
+            }
+
+
+
         }
     }
 
@@ -46,26 +60,55 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
     fun getLayerBySearch(countryName : String) {
         if (countryName.isBlank()) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true)}
-            try {
-                val response = repository.getLayersBySearch(countryName)
-                _state.update { it.copy(isLoading = false, countryLayer = response)}
-            } catch (e: Exception) {
-               _state.update { it.copy(isLoading = false, error = e.message) }
+            _state.update { it.copy(isLoading = true) }
+//            try {
+//                val response = repository.getLayersBySearch(countryName)
+//                _state.update { it.copy(isLoading = false, countryLayer = response)}
+//            } catch (e: Exception) {
+//               _state.update { it.copy(isLoading = false, error = e.message) }
+//            }
+
+            when (val result = repository.getLayersBySearch(countryName)) {
+                is NetworkResult.Success ->
+                    _state.update { it.copy(isLoading = false, countryLayer = result.data) }
+
+                is NetworkResult.Error ->
+                    _state.update { it.copy(isLoading = false, error = result.message) }
+
+                else -> {
+
+                }
             }
-    }
         }
+    }
 
     fun refreshBox(){
         viewModelScope.launch {
             _state.update { it.copy(isRefreshing = true) }
-            try {
-                val response = repository.getLayers()
-                _state.update { it.copy(isRefreshing = false, countryLayer = response) }
-        }catch (e: Exception){
-            _state.update { it.copy(isRefreshing = false, error = e.message) }}
+//            try {
+//                val response = repository.getLayers()
+//                _state.update { it.copy(isRefreshing = false, countryLayer = response) }
+//        }catch (e: Exception){
+//            _state.update { it.copy(isRefreshing = false, error = e.message) }}
+
+            when(val result = repository.getLayers()){
+                is NetworkResult.Success ->{
+                    _state.update { it.copy(isRefreshing = false, countryLayer = result.data) }
+                }
+
+                is NetworkResult.Error ->{
+                    _state.update { it.copy(isRefreshing = false, error = result.message) }
+                }
+
+            else -> {}
+
+            }
         }
-    }
+
+
+
+        }
+
 
     @OptIn(FlowPreview::class)
     fun searchDebounce(){
