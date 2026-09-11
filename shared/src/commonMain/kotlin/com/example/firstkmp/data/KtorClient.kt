@@ -1,5 +1,6 @@
 package com.example.firstkmp.data
 
+import com.example.firstkmp.domain.NetworkResult
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.cache.HttpCache
@@ -34,27 +35,30 @@ class KtorClient {
         install(HttpCache)
     }
 
-    suspend fun getLayer() : List<LayerItem> {
+    suspend fun getLayer() : NetworkResult<List<LayerItem>> {
         val url = "https://api.apilayer.net/countrylayer/v2/all?access_key=${APIKEY.API_KEY}"
-
-        try {
+        return try {
             val response = ktorClient.get(url)
-            return response.body()
+            //return response.body()
+            NetworkResult.Success(response.body())
+
 
         } catch (e: Exception) {
-            throw e
+            //throw e
+            NetworkResult.Error(message = e.message ?: "Network Error", exception = e)
         }
 
         }
 
-    suspend fun getLayerBySearch(countryName : String) : List<LayerItem> {
+    suspend fun getLayerBySearch(countryName : String) : NetworkResult<List<LayerItem>> {
 
         val url = "https://api.apilayer.net/countrylayer/v2/name/$countryName?access_key=${APIKEY.API_KEY}"
 
         return try {
-            ktorClient.get(url).body()
+            val response = ktorClient.get(url)
+            NetworkResult.Success(response.body())
         }catch (e: Exception){
-            throw e
+            NetworkResult.Error(message = e.message ?: "Network Error", exception = e)
         }
 
     }
