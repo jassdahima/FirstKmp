@@ -90,6 +90,7 @@ fun App() {
 
 
 
+
 //    LaunchedEffect(Unit){
 //        try {
 //            val response = client.getLayer()
@@ -200,9 +201,10 @@ fun App() {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         CircularProgressIndicator(strokeWidth = 3.dp)
                                         Spacer(Modifier.height(16.dp))
-                                        Text("Searching for flights...", style = MaterialTheme.typography.bodyMedium)
+                                        Text("Searcing for flights...", style = MaterialTheme.typography.bodyMedium)
                                     }
                                 }
+
                             } else {
                                 PullToRefreshBox(
                                     isRefreshing = uiState.isRefreshing,
@@ -349,7 +351,7 @@ fun DetailScreen(onPress : () -> Unit,item : LayerItem?) {
 
     Scaffold(topBar = {
         TopAppBar(
-            title = { Text(item?.name?: "Not Found") },
+            title = { Text(item?.name?:"Detail") },
             navigationIcon = {
                 IconButton(onClick = onPress) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)

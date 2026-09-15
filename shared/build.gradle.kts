@@ -70,6 +70,8 @@ kotlin {
             implementation("io.ktor:ktor-client-core:${ktorVersion}")
             implementation("io.ktor:ktor-client-content-negotiation:${ktorVersion}")
             implementation("io.ktor:ktor-serialization-kotlinx-json:${ktorVersion}")
+            implementation("io.github.alexzhirkevich:compottie:2.0.0-rc02")
+            
 
 
         }
