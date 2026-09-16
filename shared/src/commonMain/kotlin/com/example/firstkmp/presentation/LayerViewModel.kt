@@ -116,13 +116,18 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
             _state.map {
                 it.searchText
             }
-                .debounce(500)
+                .debounce(500L)
                 .distinctUntilChanged()
-                .filter { it.length > 4 }
+                .filter { it.length > 4 || it.isEmpty() }
                 .collect {
                     query ->
-                    getLayerBySearch(query)
+                    if (query.isEmpty()){
+                        getAllLayers()
                 }
+                    else {
+                        getLayerBySearch(query)
+                    }
+                    }
         }
     }
 

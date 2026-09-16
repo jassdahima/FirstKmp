@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,13 +15,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DonutLarge
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,8 +40,8 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,14 +53,12 @@ import androidx.navigation.toRoute
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
 import com.example.firstkmp.domain.LayerRepositoryImpl
+import com.example.firstkmp.domain.MockRepositoryImpl
 import com.example.firstkmp.presentation.LayerViewModel
-
+import com.example.firstkmp.presentation.animations.shimmerEffect
 
 @Composable
-@Preview
 fun App() {
-
-
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -82,11 +79,14 @@ fun App() {
 
     val repository = remember { LayerRepositoryImpl(client) }
 
+    val mockRepository = remember { MockRepositoryImpl() }
+
     val viewModel : LayerViewModel = viewModel {
-        LayerViewModel(repository)
+        LayerViewModel(mockRepository)
     }
 
     val uiState by viewModel.state.collectAsState()
+
 
 
 
@@ -196,16 +196,38 @@ fun App() {
                         ) {
                             //Text("${Screen.Home.title}")
                             if (uiState.isLoading) {
-                                // Creative Loading State
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        CircularProgressIndicator(strokeWidth = 3.dp)
-                                        Spacer(Modifier.height(16.dp))
-                                        Text("Searcing for flights...", style = MaterialTheme.typography.bodyMedium)
+                                    LazyColumn(modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        //CircularProgressIndicator(strokeWidth = 3.dp)
+
+                                        item {
+                                            Text(
+                                                text = "Featured Destinations",
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(16.dp)
+                                            )
+                                        }
+
+                                         items(6){
+                                             CountryCardPlacerholder()
+                                         }
+
                                     }
                                 }
 
-                            } else {
+                            }
+                            else if (uiState.error != null){
+                                Column(modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.Center) {
+                                    Text(text = uiState.error ?: "")
+                                }
+
+
+                            }
+
+                            else {
                                 PullToRefreshBox(
                                     isRefreshing = uiState.isRefreshing,
                                     onRefresh = {
@@ -427,6 +449,60 @@ fun DetailRow(label: String, value: String) {
         )
     }
 }
+
+
+@Composable
+fun CountryCardPlacerholder(){
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        ListItem(
+            headlineContent = {
+              Box(modifier = Modifier.fillMaxWidth(0.6f)
+                  .height(20.dp)
+                  .clip(RoundedCornerShape(4.dp))
+                  .shimmerEffect())
+            },
+            supportingContent = {
+                Box(modifier = Modifier.fillMaxWidth(0.3f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+                )
+            },
+            leadingContent = {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
+                        .shimmerEffect()
+                ) {
+                    Box(modifier = Modifier.size(40.dp)
+                        .shimmerEffect())
+                }
+            },
+            trailingContent = {
+                // A decorative tag
+                Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Box(modifier = Modifier
+                        .size(width = 60.dp, height = 24.dp)
+                        .clip(CircleShape)
+                        .shimmerEffect())
+                }
+            }
+        )
+    }
+}
+
+
+
 
 
 
