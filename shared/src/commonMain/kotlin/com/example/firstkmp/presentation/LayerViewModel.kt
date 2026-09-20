@@ -109,6 +109,10 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
 
         }
 
+    fun clearError(){
+        _state.update { it.copy(error = null) }
+    }
+
 
     @OptIn(FlowPreview::class)
     fun searchDebounce(){

@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,8 +31,13 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,6 +47,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -82,10 +89,15 @@ fun App() {
     val mockRepository = remember { MockRepositoryImpl() }
 
     val viewModel : LayerViewModel = viewModel {
-        LayerViewModel(mockRepository)
+        LayerViewModel(repository)
     }
 
     val uiState by viewModel.state.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
 
 
 
@@ -114,7 +126,24 @@ fun App() {
 //    viewModel.getAllLayers()
 //}
 
+LaunchedEffect(uiState.error){
+    uiState.error?.let {error ->
+        val result = snackbarHostState.showSnackbar(
+            message = error,
+            actionLabel = "Retry",
+            duration = SnackbarDuration.Indefinite,
+            withDismissAction = true
+        )
 
+        if (result == SnackbarResult.ActionPerformed){
+            viewModel.getAllLayers()
+        }
+
+        else{
+            viewModel.clearError()
+        }
+    }
+}
 
 
 
@@ -141,7 +170,8 @@ fun App() {
                         )
                     }
                 }
-            }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
         ) {
 
             NavHost(
@@ -196,6 +226,7 @@ fun App() {
                         ) {
                             //Text("${Screen.Home.title}")
                             if (uiState.isLoading) {
+
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     LazyColumn(modifier = Modifier.fillMaxSize(),
                                         verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -216,14 +247,6 @@ fun App() {
 
                                     }
                                 }
-
-                            }
-                            else if (uiState.error != null){
-                                Column(modifier = Modifier.fillMaxSize(),
-                                    verticalArrangement = Arrangement.Center) {
-                                    Text(text = uiState.error ?: "")
-                                }
-
 
                             }
 
@@ -250,7 +273,10 @@ fun App() {
                                         }
 
                                         items(uiState.countryLayer) { item ->
-                                            CountryCard(item, onClick = {navController.navigate(Detail(item.name))})
+                                            CountryCard(item, onClick = {haptic.performHapticFeedback(
+                                                HapticFeedbackType.LongPress
+                                            )
+                                                navController.navigate(Detail(item.name))})
                                         }
                                     }
                                 }
@@ -311,11 +337,12 @@ fun App() {
 
 @Composable
 fun CountryCard(item: LayerItem,onClick : () -> Unit) {
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.elevatedCardColors(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
