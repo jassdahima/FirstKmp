@@ -4,11 +4,12 @@ import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,11 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
@@ -31,8 +36,13 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,27 +51,29 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.firstkmp.data.Features.SearchHistoryManager
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
 import com.example.firstkmp.domain.LayerRepositoryImpl
+import com.example.firstkmp.domain.MockRepositoryImpl
 import com.example.firstkmp.presentation.LayerViewModel
-
+import com.example.firstkmp.presentation.animations.shimmerEffect
 
 @Composable
-@Preview
-fun App() {
-
-
+fun App(dataStore : DataStore<Preferences>) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -82,11 +94,25 @@ fun App() {
 
     val repository = remember { LayerRepositoryImpl(client) }
 
+    val mockRepository = remember { MockRepositoryImpl() }
+
+    val historyManager = SearchHistoryManager(dataStore)
+
+
+
     val viewModel : LayerViewModel = viewModel {
-        LayerViewModel(repository)
+        LayerViewModel(mockRepository,historyManager)
     }
 
     val uiState by viewModel.state.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+    var query by remember { mutableStateOf("") }
+
+
 
 
 
@@ -114,7 +140,24 @@ fun App() {
 //    viewModel.getAllLayers()
 //}
 
+LaunchedEffect(uiState.error){
+    uiState.error?.let {error ->
+        val result = snackbarHostState.showSnackbar(
+            message = error,
+            actionLabel = "Retry",
+            duration = SnackbarDuration.Indefinite,
+            withDismissAction = true
+        )
 
+        if (result == SnackbarResult.ActionPerformed){
+            viewModel.getAllLayers()
+        }
+
+        else{
+            viewModel.clearError()
+        }
+    }
+}
 
 
 
@@ -141,7 +184,8 @@ fun App() {
                         )
                     }
                 }
-            }
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
         ) {
 
             NavHost(
@@ -187,6 +231,24 @@ fun App() {
                                     }
                                 }
                             )
+
+
+                                Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    elevation = CardDefaults.cardElevation(4.dp)) {
+                                    LazyColumn {
+                                        items(uiState.filteredSuggestions){suggestions ->
+                                            ListItem(
+                                                headlineContent = {Text(suggestions)},
+                                                leadingContent = {Icon(Icons.Default.History,null)},
+                                                modifier = Modifier.clickable{
+                                                    viewModel.onSearchTextChange(suggestions)
+                                                    viewModel.getLayerBySearch(suggestions)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
                         }
                     }) {paddingValues ->
                         Column(
@@ -196,16 +258,31 @@ fun App() {
                         ) {
                             //Text("${Screen.Home.title}")
                             if (uiState.isLoading) {
-                                // Creative Loading State
+
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        CircularProgressIndicator(strokeWidth = 3.dp)
-                                        Spacer(Modifier.height(16.dp))
-                                        Text("Searcing for flights...", style = MaterialTheme.typography.bodyMedium)
+                                    LazyColumn(modifier = Modifier.fillMaxSize(),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        //CircularProgressIndicator(strokeWidth = 3.dp)
+
+                                        item {
+                                            Text(
+                                                text = "Featured Destinations",
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.padding(16.dp)
+                                            )
+                                        }
+
+                                         items(6){
+                                             CountryCardPlacerholder()
+                                         }
+
                                     }
                                 }
 
-                            } else {
+                            }
+
+                            else {
                                 PullToRefreshBox(
                                     isRefreshing = uiState.isRefreshing,
                                     onRefresh = {
@@ -228,7 +305,10 @@ fun App() {
                                         }
 
                                         items(uiState.countryLayer) { item ->
-                                            CountryCard(item, onClick = {navController.navigate(Detail(item.name))})
+                                            CountryCard(item, onClick = {haptic.performHapticFeedback(
+                                                HapticFeedbackType.LongPress
+                                            )
+                                                navController.navigate(Detail(item.name))})
                                         }
                                     }
                                 }
@@ -242,12 +322,59 @@ fun App() {
                     composable(Screen.Apps.route) {
 
 
+
+
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .padding(16.dp),
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("${Screen.Apps.title}")
+
+                            OutlinedTextField(value = query, onValueChange = {query = it}, label = {Text("Search")},
+                                modifier = Modifier.fillMaxWidth())
+                            Button(onClick = {
+                                viewModel.getSerpSearch(query)
+                            }) {
+                                Text("Search")
+                            }
+                            when{
+                                uiState.isLoading ->
+                                {
+                                    Box(modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+
+                                uiState.error != null ->
+                                {
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center){
+                                        Text(
+                                            text = uiState.error ?: "An unexpected error occurred"
+                                        )
+                                    }
+                                }
+
+                                uiState.serp.isEmpty() -> {
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center){
+                                        Text("No Results")
+                                    }
+
+                                }
+
+                                else -> {
+                                    LazyColumn(modifier = Modifier.weight(1f)
+                                        .fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(uiState.serp){
+                                           Text(it.query)
+                                        }
+                                    }
+                                }
+                            }
+
+
                         }
                     }
                     composable(Screen.Events.route) {
@@ -289,11 +416,12 @@ fun App() {
 
 @Composable
 fun CountryCard(item: LayerItem,onClick : () -> Unit) {
-    ElevatedCard(
+    OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.elevatedCardColors(
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp,MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+        colors = CardDefaults.outlinedCardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
@@ -427,6 +555,60 @@ fun DetailRow(label: String, value: String) {
         )
     }
 }
+
+
+@Composable
+fun CountryCardPlacerholder(){
+    ElevatedCard(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        ListItem(
+            headlineContent = {
+              Box(modifier = Modifier.fillMaxWidth(0.6f)
+                  .height(20.dp)
+                  .clip(RoundedCornerShape(4.dp))
+                  .shimmerEffect())
+            },
+            supportingContent = {
+                Box(modifier = Modifier.fillMaxWidth(0.3f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+                )
+            },
+            leadingContent = {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
+                        .shimmerEffect()
+                ) {
+                    Box(modifier = Modifier.size(40.dp)
+                        .shimmerEffect())
+                }
+            },
+            trailingContent = {
+                // A decorative tag
+                Surface(
+                    shape = MaterialTheme.shapes.extraLarge,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                ) {
+                    Box(modifier = Modifier
+                        .size(width = 60.dp, height = 24.dp)
+                        .clip(CircleShape)
+                        .shimmerEffect())
+                }
+            }
+        )
+    }
+}
+
+
+
 
 
 
