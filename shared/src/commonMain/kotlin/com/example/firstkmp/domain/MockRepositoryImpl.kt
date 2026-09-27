@@ -1,6 +1,10 @@
 package com.example.firstkmp.domain
 
 import com.example.firstkmp.data.LayerItem
+import com.example.firstkmp.data.news.LocalResult
+import com.example.firstkmp.data.news.OrganicResult
+import com.example.firstkmp.data.news.RelatedSearche
+import com.example.firstkmp.data.news.SerpStack
 import kotlinx.coroutines.delay
 
 class MockRepositoryImpl : LayerRepository {
@@ -67,6 +71,10 @@ class MockRepositoryImpl : LayerRepository {
             val filtered = mockData.filter { it.name.contains(query, ignoreCase = true) }
             return NetworkResult.Success(filtered)
         }
+    }
+
+    override suspend fun getSerpSearch(query: String): NetworkResult<List<RelatedSearche>> {
+        TODO("Not yet implemented")
     }
 
 }

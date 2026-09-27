@@ -1,5 +1,9 @@
 package com.example.firstkmp.data
 
+import com.example.firstkmp.data.news.LocalResult
+import com.example.firstkmp.data.news.OrganicResult
+import com.example.firstkmp.data.news.RelatedSearche
+import com.example.firstkmp.data.news.SerpStack
 import com.example.firstkmp.domain.NetworkResult
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -59,6 +63,33 @@ class KtorClient {
             NetworkResult.Success(response.body())
         }catch (e: Exception){
             NetworkResult.Error(message = e.message ?: "Network Error", exception = e)
+        }
+
+    }
+
+
+    suspend fun getSerpSearch(query : String) : NetworkResult<List<RelatedSearche>>{
+
+        val exampleUrl = "https://api.apilayer.net/serpstack/search?access_key=01a4bfa3ce01551de7d6f6036376e393&query=mcdonalds"
+
+        val baseUrl = "https://api.apilayer.net/serpstack/search"
+
+        return try {
+            val response = ktorClient.get(baseUrl)
+            {
+                url{
+                    parameters.append("access_key", APIKEY.API_KEY)
+                    parameters.append("query",query)
+                }
+            }
+            val serpResponse : SerpStack = response.body()
+
+
+
+            NetworkResult.Success(serpResponse.related_searches)
+        }catch (e: Exception){
+            NetworkResult.Error(message = e.message ?: "Network Error")
+
         }
 
     }

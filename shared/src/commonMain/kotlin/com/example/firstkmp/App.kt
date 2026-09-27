@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,8 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DonutLarge
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,12 +56,15 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.firstkmp.data.Features.SearchHistoryManager
 import com.example.firstkmp.data.KtorClient
 import com.example.firstkmp.data.LayerItem
 import com.example.firstkmp.domain.LayerRepositoryImpl
@@ -65,7 +73,7 @@ import com.example.firstkmp.presentation.LayerViewModel
 import com.example.firstkmp.presentation.animations.shimmerEffect
 
 @Composable
-fun App() {
+fun App(dataStore : DataStore<Preferences>) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -88,8 +96,12 @@ fun App() {
 
     val mockRepository = remember { MockRepositoryImpl() }
 
+    val historyManager = SearchHistoryManager(dataStore)
+
+
+
     val viewModel : LayerViewModel = viewModel {
-        LayerViewModel(repository)
+        LayerViewModel(mockRepository,historyManager)
     }
 
     val uiState by viewModel.state.collectAsState()
@@ -97,6 +109,8 @@ fun App() {
     val snackbarHostState = remember { SnackbarHostState() }
 
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+
+    var query by remember { mutableStateOf("") }
 
 
 
@@ -217,6 +231,24 @@ LaunchedEffect(uiState.error){
                                     }
                                 }
                             )
+
+
+                                Card(modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    elevation = CardDefaults.cardElevation(4.dp)) {
+                                    LazyColumn {
+                                        items(uiState.filteredSuggestions){suggestions ->
+                                            ListItem(
+                                                headlineContent = {Text(suggestions)},
+                                                leadingContent = {Icon(Icons.Default.History,null)},
+                                                modifier = Modifier.clickable{
+                                                    viewModel.onSearchTextChange(suggestions)
+                                                    viewModel.getLayerBySearch(suggestions)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
                         }
                     }) {paddingValues ->
                         Column(
@@ -290,12 +322,59 @@ LaunchedEffect(uiState.error){
                     composable(Screen.Apps.route) {
 
 
+
+
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize()
+                                .padding(16.dp),
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("${Screen.Apps.title}")
+
+                            OutlinedTextField(value = query, onValueChange = {query = it}, label = {Text("Search")},
+                                modifier = Modifier.fillMaxWidth())
+                            Button(onClick = {
+                                viewModel.getSerpSearch(query)
+                            }) {
+                                Text("Search")
+                            }
+                            when{
+                                uiState.isLoading ->
+                                {
+                                    Box(modifier = Modifier.weight(1f),
+                                        contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+
+                                uiState.error != null ->
+                                {
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center){
+                                        Text(
+                                            text = uiState.error ?: "An unexpected error occurred"
+                                        )
+                                    }
+                                }
+
+                                uiState.serp.isEmpty() -> {
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center){
+                                        Text("No Results")
+                                    }
+
+                                }
+
+                                else -> {
+                                    LazyColumn(modifier = Modifier.weight(1f)
+                                        .fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        items(uiState.serp){
+                                           Text(it.query)
+                                        }
+                                    }
+                                }
+                            }
+
+
                         }
                     }
                     composable(Screen.Events.route) {
