@@ -17,6 +17,8 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 }
 
 android {

@@ -3,7 +3,9 @@ package com.example.firstkmp.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.firstkmp.data.Features.SearchHistoryManager
 import com.example.firstkmp.data.LayerItem
+import com.example.firstkmp.data.news.RelatedSearche
 import com.example.firstkmp.domain.LayerRepository
 import com.example.firstkmp.domain.NetworkResult
 import kotlinx.coroutines.FlowPreview
@@ -16,13 +18,33 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
+class LayerViewModel(private val repository: LayerRepository,private val historyManager: SearchHistoryManager) : ViewModel(){
 
     private val _state = MutableStateFlow(UiState())
     val state = _state.asStateFlow()
 
     init {
         searchDebounce()
+    }
+
+    init {
+        viewModelScope.launch {
+            historyManager.searchHistory.collect {
+                history ->
+                _state.update { it.copy(searchHistory = history,
+                    filteredSuggestions = if(it.searchText.isEmpty()) history else it.filteredSuggestions)}
+
+            }
+        }
+    }
+
+
+
+    fun performSearch(query: String){
+        viewModelScope.launch {
+            historyManager.saveSearch(query)
+            getLayerBySearch(query)
+        }
     }
 
 
@@ -54,7 +76,17 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
     }
 
     fun onSearchTextChange(text : String){
-        _state.update { it.copy(searchText = text) }
+       // _state.update { it.copy(searchText = text) }
+
+        _state.update { state ->
+            val suggestions = if (text.isEmpty()){
+                state.searchHistory
+            }else{
+                state.searchHistory.filter { it .contains(text,ignoreCase = true)}
+            }
+
+            state.copy(searchText = text, filteredSuggestions = suggestions)
+        }
     }
 
     fun getLayerBySearch(countryName : String) {
@@ -135,6 +167,26 @@ class LayerViewModel(private val repository: LayerRepository) : ViewModel(){
         }
     }
 
+    fun getSerpSearch(query : String){
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+           when( val result = repository.getSerpSearch(query)){
+               is NetworkResult.Success -> {
+                   _state.update { it.copy(isLoading = false, serp = result.data) }
+               }
+               is NetworkResult.Error -> {
+                   _state.update { it.copy(isLoading = false, error = result.message) }
+
+               }
+               else -> {
+
+               }
+           }
+
+
+        }
+    }
+
 
 
 }
@@ -145,5 +197,8 @@ data class UiState(
     val isLoading : Boolean = false,
     val error : String? = null,
     val isRefreshing : Boolean = false,
-    val searchText : String = ""
+    val searchText : String = "",
+    val serp : List<RelatedSearche> = emptyList(),
+    val searchHistory : List<String> = emptyList(),
+    val filteredSuggestions : List<String> = emptyList()
     )
